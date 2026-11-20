@@ -155,6 +155,7 @@ let kCol = 'in_corso';
 let fattQuery = '';
 let clientiQuery = '';
 let showDone = false; // Dashboard: mostra anche i task già completati
+let invStop = null; // ascolto degli inviti (Impostazioni, solo amministratore)
 let prevTab = 'home'; // sezione da cui si è arrivati alle Impostazioni (per il tasto Indietro)
 function goTab(t) {
   if (tab === 'note' && t !== 'note') lasciaNota();
@@ -2187,9 +2188,32 @@ function vImp(v) {
       <h2>Account</h2>
       <p class="small">Sei collegato come <b>${esc((window.aldoUser && window.aldoUser.email) || '')}</b>. I tuoi dati sono visibili solo a te.</p>
       <div style="margin-top:14px"><button class="btn ghost" type="button" id="logout-btn">Esci</button></div>
-    </div>`;
+    </div>
+    ${window.aldoUser && window.aldoUser.admin ? `<div class="panel imp-inv">
+      <h2>Inviti</h2>
+      <p class="small">Solo le email in questo elenco possono entrare in ALDO. Ognuno vede soltanto i propri dati. Dopo l'invito, la persona apre il sito e accede con Google oppure tocca "Hai ricevuto un invito? Crea la password".</p>
+      <div class="rows" id="inv-list" style="margin-top:10px"><div class="empty">Carico…</div></div>
+      <form id="inv-form" class="cadd" style="grid-template-columns:minmax(0,1fr) auto;margin-top:10px" novalidate><input type="email" id="inv-mail" placeholder="email della persona da invitare" autocomplete="off"><button class="btn sm" type="submit">Invita</button></form>
+      <div class="err" id="inv-err"></div>
+    </div>` : ''}`;
   v.querySelector('[data-back]').onclick = goBack;
   v.querySelector('#logout-btn').onclick = () => window.aldoLogout && window.aldoLogout();
+  if (v.querySelector('#inv-list') && window.aldoInviti) {
+    if (invStop) invStop();
+    const box = v.querySelector('#inv-list'), ierr = v.querySelector('#inv-err');
+    invStop = window.aldoInviti.ascolta(list => {
+      if (!document.body.contains(box)) { if (invStop) { invStop(); invStop = null; } return; }
+      if (!list) { box.innerHTML = '<div class="empty">Non riesco a leggere gli inviti.</div>'; return; }
+      box.innerHTML = list.length ? list.sort((a, b) => a.email.localeCompare(b.email)).map(i => `<div class="crow"><span class="cv">${esc(i.email)}</span>${i.email === String(window.aldoUser.email || '').toLowerCase() ? '<span class="cd">tu</span>' : `<button type="button" class="x" data-inv="${esc(i.email)}" aria-label="Togli invito">✕</button>`}</div>`).join('') : '<div class="empty">Nessun invito.</div>';
+      box.querySelectorAll('[data-inv]').forEach(b => b.onclick = async () => { try { await window.aldoInviti.togli(b.dataset.inv); } catch (e) { ierr.textContent = 'Non sono riuscito a togliere l\'invito.'; } });
+    });
+    v.querySelector('#inv-form').onsubmit = async e => {
+      e.preventDefault(); ierr.textContent = '';
+      const inp = v.querySelector('#inv-mail'), m = inp.value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m)) { ierr.textContent = 'Scrivi un\'email valida.'; return; }
+      try { await window.aldoInviti.aggiungi(m); inp.value = ''; } catch (er) { ierr.textContent = 'Invito non salvato. Riprova.'; }
+    };
+  }
   const tipoSel = v.querySelector('#i-itipo');
   const mostraInps = () => v.querySelectorAll('[data-inps]').forEach(el => { el.hidden = (el.dataset.inps === 'separata') !== (tipoSel.value === 'separata'); });
   tipoSel.onchange = mostraInps; mostraInps();

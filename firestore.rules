@@ -1,9 +1,24 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Ogni utente legge e scrive solo dentro utenti/{il suo uid}. Tutto il resto è chiuso.
+    function signedIn() { return request.auth != null; }
+    function email() { return request.auth.token.email.lower(); }
+    function isAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function invited() { return signedIn() && exists(/databases/$(database)/documents/inviti/$(email())); }
+
+    // Ogni utente invitato legge e scrive solo dentro utenti/{il suo uid}.
     match /utenti/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if invited() && request.auth.uid == uid;
+    }
+    // Inviti: id del documento = email in minuscolo. Li gestisce solo l'amministratore.
+    match /inviti/{mail} {
+      allow read: if signedIn() && (email() == mail || isAdmin());
+      allow write: if isAdmin();
+    }
+    // Amministratori: si creano solo dalla Console Firebase (id = uid).
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
     }
   }
 }

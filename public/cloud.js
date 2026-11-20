@@ -10,7 +10,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, addDoc, setDoc, deleteDoc, onSnapshot,
+  collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, getDoc,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { firebaseConfig } from './firebase-config.js';
 
@@ -70,7 +70,8 @@ const ERR = {
   'auth/invalid-email': 'L\'email non sembra valida.',
   'auth/user-not-found': 'Nessun account con questa email.',
   'auth/wrong-password': 'Password non corretta.',
-  'auth/email-already-in-use': 'Esiste già un account con questa email: accedi.',
+  'auth/email-already-in-use': 'Hai già un account con questa email: accedi.',
+  'non-invitato': 'Questa email non è stata invitata. Chiedi un invito a chi gestisce ALDO.',
   'auth/weak-password': 'La password deve avere almeno 6 caratteri.',
   'auth/too-many-requests': 'Troppi tentativi: riprova tra qualche minuto.',
   'auth/popup-closed-by-user': 'Accesso con Google annullato.',
@@ -84,14 +85,14 @@ function showLogin() {
   el.id = 'login';
   el.innerHTML = `
     <form class="lg-card" novalidate>
-      <div class="lg-brand"><b>ALDO<i>.</i></b><span>il gestionale dei freelance</span></div>
+      <div class="lg-brand"><b>ALDO<i>.</i></b><span>accesso su invito</span></div>
       <button type="button" class="lg-google">${G_ICON}Continua con Google</button>
       <div class="lg-or"><span>oppure</span></div>
       <label>Email<input type="email" name="email" autocomplete="email" required></label>
       <label>Password<input type="password" name="password" autocomplete="current-password" required minlength="6"></label>
       <div class="lg-err" role="alert"></div>
       <button type="submit" class="btn lg-go">Accedi</button>
-      <div class="lg-links"><button type="button" class="lnk lg-mode">Non hai un account? Registrati</button><button type="button" class="lnk lg-reset">Password dimenticata?</button></div>
+      <div class="lg-links"><button type="button" class="lnk lg-mode">Hai ricevuto un invito? Crea la password</button><button type="button" class="lnk lg-reset">Password dimenticata?</button></div>
     </form>`;
   document.body.appendChild(el);
   const f = el.querySelector('form'), err = el.querySelector('.lg-err'), go = el.querySelector('.lg-go'), mode = el.querySelector('.lg-mode');
@@ -99,7 +100,7 @@ function showLogin() {
   mode.onclick = () => {
     registra = !registra; err.textContent = '';
     go.textContent = registra ? 'Crea account' : 'Accedi';
-    mode.textContent = registra ? 'Hai già un account? Accedi' : 'Non hai un account? Registrati';
+    mode.textContent = registra ? 'Hai già un account? Accedi' : 'Hai ricevuto un invito? Crea la password';
     f.password.autocomplete = registra ? 'new-password' : 'current-password';
   };
   el.querySelector('.lg-reset').onclick = async () => {
@@ -123,13 +124,27 @@ function showLogin() {
 const G_ICON = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
 
 let currentUid = null;
-onAuthStateChanged(auth, user => {
+// accesso consentito solo alle email presenti in inviti/{email}
+async function invitato(user) {
+  if (!user.email) return false;
+  try { return (await getDoc(doc(fs, 'inviti', user.email.toLowerCase()))).exists(); } catch (e) { return false; }
+}
+async function isAdmin(uid) {
+  try { return (await getDoc(doc(fs, 'admins', uid))).exists(); } catch (e) { return false; }
+}
+onAuthStateChanged(auth, async user => {
+  if (user && !(await invitato(user))) {
+    await signOut(auth);
+    showLogin();
+    const err = document.querySelector('#login .lg-err'); if (err) err.textContent = msg({ code: 'non-invitato' });
+    return;
+  }
   if (user) {
     if (currentUid && currentUid !== user.uid) { location.reload(); return; } // cambio utente: si riparte puliti
     currentUid = user.uid;
     document.getElementById('login')?.remove();
     dbInstance = dbInstance || makeDb(user.uid);
-    window.aldoUser = { uid: user.uid, email: user.email, nome: user.displayName || '' };
+    window.aldoUser = { uid: user.uid, email: user.email, nome: user.displayName || '', admin: await isAdmin(user.uid) };
     userReady(user);
   } else {
     if (currentUid) { location.reload(); return; } // uscito: ricarica e mostra il login
@@ -138,6 +153,13 @@ onAuthStateChanged(auth, user => {
 });
 
 window.aldoLogout = () => signOut(auth);
+
+// gestione inviti (solo amministratore: le regole di Firestore rifiutano gli altri)
+window.aldoInviti = {
+  ascolta(cb) { return onSnapshot(collection(fs, 'inviti'), s => cb(s.docs.map(d => ({ email: d.id, ...d.data() }))), () => cb(null)); },
+  aggiungi: email => setDoc(doc(fs, 'inviti', String(email).trim().toLowerCase()), { creato: new Date().toISOString(), da: auth.currentUser?.email || '' }),
+  togli: email => deleteDoc(doc(fs, 'inviti', email)),
+};
 
 /* ---------- stessa interfaccia di window.claude ---------- */
 window.claude = {

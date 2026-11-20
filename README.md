@@ -16,3 +16,14 @@ Ogni persona accede con il proprio account e vede solo i propri dati.
 2. Attiva Authentication (Email/password e Google) e Firestore.
 3. Copia la configurazione web in `public/firebase-config.js`.
 4. `npm i -g firebase-tools && firebase login && firebase use --add && firebase deploy`
+
+## Accesso solo su invito
+
+Entrano solo le email presenti nella collezione `inviti` (id del documento = email in minuscolo).
+
+Primo avvio, una volta sola, dalla Console Firebase > Firestore:
+1. Crea la collezione `inviti` con un documento il cui id è la tua email (minuscolo). Campi a piacere.
+2. Accedi ad ALDO una volta, poi in Authentication copia il tuo "UID utente".
+3. Crea la collezione `admins` con un documento il cui id è quel UID.
+
+Da quel momento gli altri inviti li gestisci da ALDO: Impostazioni > Inviti.

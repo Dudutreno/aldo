@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ALDO.</title>
+<meta name="theme-color" content="#F4F4F4">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300..800&display=swap">
+<style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<script>try{if(localStorage.getItem("aldo_side")==="min"||matchMedia("(max-width: 1100px)").matches)document.documentElement.classList.add("side-min")}catch(e){}</script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="login.css">
+</head>
+<body>
+<aside class="side" id="side" aria-label="Menu principale"></aside>
+<div class="wrap">
+  <div class="top">
+    <button type="button" class="brand" id="brand" aria-label="Vai alla Dashboard"><b>ALDO<i style="color:var(--accent-text);font-style:normal">.</i></b><span>TRAINGRAPHIC</span></button>
+    <button class="icon-btn" id="burger" type="button" aria-label="Apri il menu" aria-haspopup="true" aria-expanded="false"></button>
+    <div class="top-act"><button class="top-ai" id="top-ai" type="button" aria-label="Parla con Aldo" hidden>✦</button><button class="top-altro" id="bn-altro" type="button" aria-haspopup="true" aria-label="Altre sezioni: Tasse, Clienti, Spese, Impostazioni"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+    <button class="top-add" id="top-add" type="button" aria-label="Aggiungi">+</button></div>
+  </div>
+  <main id="view"></main>
+  <div class="status" id="status">Caricamento dati…</div>
+</div>
+<button class="fab" id="fab" type="button" aria-label="Aggiungi">+</button>
+<nav class="bnav" id="bnav" aria-label="Menu principale"></nav>
+
+<script type="module" src="cloud.js"></script>
+</body>
+</html>

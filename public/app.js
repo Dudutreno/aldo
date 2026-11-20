@@ -2189,6 +2189,11 @@ function vImp(v) {
       <p class="small">Sei collegato come <b>${esc((window.aldoUser && window.aldoUser.email) || '')}</b>. I tuoi dati sono visibili solo a te.</p>
       <div style="margin-top:14px"><button class="btn ghost" type="button" id="logout-btn">Esci</button></div>
     </div>
+    <div class="panel imp-imp">
+      <h2>Importa dati</h2>
+      <p class="small">Carica un file di backup di ALDO (.json). <b>Sostituisce tutti i tuoi dati attuali</b> con quelli del file.</p>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap"><input type="file" id="imp-file" accept=".json,application/json" hidden><button class="btn ghost" type="button" id="imp-pick">Scegli file…</button><button class="btn" type="button" id="imp-go" hidden>Sostituisci i miei dati</button><span class="small" id="imp-msg"></span></div>
+    </div>
     ${window.aldoUser && window.aldoUser.admin ? `<div class="panel imp-inv">
       <h2>Inviti</h2>
       <p class="small">Solo le email in questo elenco possono entrare in ALDO. Ognuno vede soltanto i propri dati. Dopo l'invito, la persona apre il sito e accede con Google oppure tocca "Hai ricevuto un invito? Crea la password".</p>
@@ -2198,6 +2203,29 @@ function vImp(v) {
     </div>` : ''}`;
   v.querySelector('[data-back]').onclick = goBack;
   v.querySelector('#logout-btn').onclick = () => window.aldoLogout && window.aldoLogout();
+  {
+    const fi = v.querySelector('#imp-file'), go = v.querySelector('#imp-go'), im = v.querySelector('#imp-msg');
+    let bundle = null;
+    v.querySelector('#imp-pick').onclick = () => fi.click();
+    fi.onchange = async () => {
+      bundle = null; go.hidden = true; im.textContent = '';
+      const f = fi.files && fi.files[0]; if (!f) return;
+      try {
+        const b = JSON.parse(await f.text());
+        if (b.formato !== 'aldo-backup' || !b.dati) throw 0;
+        const n = k => Object.keys(b.dati[k] || {}).length;
+        bundle = b; go.hidden = false;
+        im.textContent = `Nel file: ${n('fatture')} fatture, ${n('progetti')} progetti, ${n('clienti')} clienti, ${n('task')} task, ${n('note')} note.`;
+      } catch (e) { im.textContent = 'Questo file non è un backup di ALDO.'; }
+    };
+    go.onclick = async () => {
+      if (!bundle || !window.aldoImporta) return;
+      go.disabled = true; im.textContent = 'Importo…';
+      try { await window.aldoImporta(bundle, (a, t) => { im.textContent = `Importo… ${a}/${t}`; }); im.textContent = 'Fatto: dati importati.'; go.hidden = true; bundle = null; }
+      catch (e) { im.textContent = 'Importazione non riuscita. Riprova.'; }
+      finally { go.disabled = false; }
+    };
+  }
   if (v.querySelector('#inv-list') && window.aldoInviti) {
     if (invStop) invStop();
     const box = v.querySelector('#inv-list'), ierr = v.querySelector('#inv-err');

@@ -10,7 +10,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, getDoc,
+  collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, getDoc, getDocs, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { firebaseConfig } from './firebase-config.js';
 
@@ -153,6 +153,24 @@ onAuthStateChanged(auth, async user => {
 });
 
 window.aldoLogout = () => signOut(auth);
+
+// importa un file di backup JSON (formato 'aldo-backup') SOSTITUENDO tutti i dati dell'utente collegato
+const COLL_IMPORT = ['clienti', 'progetti', 'fatture', 'spese', 'task', 'note', 'cartelle', 'config'];
+window.aldoImporta = async (bundle, onProg) => {
+  if (!bundle || bundle.formato !== 'aldo-backup' || !bundle.dati) throw { code: 'formato' };
+  const uid = auth.currentUser && auth.currentUser.uid; if (!uid) throw { code: 'login' };
+  const ops = [];
+  for (const c of COLL_IMPORT) {
+    const esist = await getDocs(collection(fs, 'utenti', uid, c));
+    esist.forEach(d => ops.push(b => b.delete(d.ref)));
+    for (const [id, data] of Object.entries(bundle.dati[c] || {})) ops.push(b => b.set(doc(fs, 'utenti', uid, c, id), data));
+  }
+  for (let i = 0; i < ops.length; i += 400) {
+    const b = writeBatch(fs); ops.slice(i, i + 400).forEach(f => f(b)); await b.commit();
+    onProg && onProg(Math.min(ops.length, i + 400), ops.length);
+  }
+  return Object.fromEntries(COLL_IMPORT.map(c => [c, Object.keys(bundle.dati[c] || {}).length]));
+};
 
 // gestione inviti (solo amministratore: le regole di Firestore rifiutano gli altri)
 window.aldoInviti = {

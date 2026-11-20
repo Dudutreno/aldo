@@ -162,7 +162,8 @@ window.aldoImporta = async (bundle, onProg) => {
   const ops = [];
   for (const c of COLL_IMPORT) {
     const esist = await getDocs(collection(fs, 'utenti', uid, c));
-    esist.forEach(d => ops.push(b => b.delete(d.ref)));
+    const nuovi = bundle.dati[c] || {};
+    esist.forEach(d => { if (!(d.id in nuovi)) ops.push(b => b.delete(d.ref)); }); // gli altri vengono sovrascritti
     for (const [id, data] of Object.entries(bundle.dati[c] || {})) ops.push(b => b.set(doc(fs, 'utenti', uid, c, id), data));
   }
   for (let i = 0; i < ops.length; i += 400) {
